@@ -25,10 +25,8 @@ This script is provided "as is" without any warranties or guarantees. Use it at 
 Run the script on your Proxmox host with:
 
 ```bash
-bash -c "$(curl -fsSL URL)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/PTX-AG/Ubuntu-25.04-LXC-with-LAMP/refs/heads/main/install_ubuntu_25_04_lxc.sh)"
 ```
-
-Replace `URL` with the actual URL where the script is hosted.
 
 Follow the interactive prompts to configure your container and software stack.
 
