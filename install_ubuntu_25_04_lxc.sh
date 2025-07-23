@@ -68,6 +68,12 @@ cpu_cores=$(prompt_int "Enter number of CPU cores for the container: ")
 memory_mb=$(prompt_int "Enter memory size in MB for the container: ")
 disk_gb=$(prompt_int "Enter disk size in GB for the container: ")
 
+# List available storage pools
+echo "Available storage pools:"
+pvesm status | awk 'NR>1 {print $1}'
+
+read -rp "Enter storage pool to use for container rootfs: " storage_pool
+
 echo
 list_bridges
 echo
@@ -155,7 +161,7 @@ pct create $ctid local:vztmpl/ubuntu-25.04-standard_25.04-1_amd64.tar.zst \
   --cores $cpu_cores \
   --memory $memory_mb \
   --swap 512 \
-  --rootfs local-lvm:$((disk_gb * 1024))M \
+  --rootfs $storage_pool:$((disk_gb * 1024))M \
   --net0 name=eth0,bridge=$net_bridge,firewall=1
 
 # Configure network inside container
