@@ -165,11 +165,12 @@ prompt_hostname() {
   local input
   while true; do
     read -rp "Enter hostname for the container: " input
-    if [[ "$input" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*$ ]]; then
+    # Validate hostname: letters, digits, hyphens, no leading/trailing hyphen, max 63 chars
+    if [[ "$input" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; then
       echo "$input"
       return
     else
-      echo "Invalid hostname. Use alphanumeric characters and hyphens only."
+      echo "Invalid hostname. Use alphanumeric characters and hyphens only, no leading or trailing hyphens, max length 63."
     fi
   done
 }
@@ -186,12 +187,14 @@ pct create $ctid local:vztmpl/ubuntu-25.04-standard_25.04-1_amd64.tar.zst \
   --cores $cpu_cores \
   --memory $memory_mb \
   --swap 512 \
-  --hostname $hostname \
   --rootfs $storage_pool:$((disk_gb * 1024))M \
   --net0 name=eth0,bridge=$net_bridge,firewall=1
 
 # Configure network inside container
 echo "Configuring network..."
+
+# Set hostname inside container after creation
+pct exec $ctid -- hostnamectl set-hostname $hostname
 
 if [[ "$ip_mode" == "dhcp" ]]; then
   pct set $ctid -net0 ip=dhcp
