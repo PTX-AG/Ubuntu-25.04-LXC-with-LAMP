@@ -143,17 +143,42 @@ fi
 
 secure_container=$(prompt_yes_no "Secure the container (disable root SSH login, configure SSH keys)?")
 
-# Generate a unique container ID (find next available)
-get_next_ctid() {
-  local id=100
-  while pct status $id &>/dev/null; do
-    ((id++))
+# Prompt user for container ID and name
+prompt_ctid() {
+  local input
+  while true; do
+    read -rp "Enter container ID (numeric): " input
+    if [[ "$input" =~ ^[0-9]+$ ]]; then
+      if ! pct status $input &>/dev/null; then
+        echo "$input"
+        return
+      else
+        echo "Container ID $input already exists. Please choose another."
+      fi
+    else
+      echo "Please enter a valid numeric container ID."
+    fi
   done
-  echo $id
 }
 
-ctid=$(get_next_ctid)
+prompt_hostname() {
+  local input
+  while true; do
+    read -rp "Enter hostname for the container: " input
+    if [[ "$input" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*$ ]]; then
+      echo "$input"
+      return
+    else
+      echo "Invalid hostname. Use alphanumeric characters and hyphens only."
+    fi
+  done
+}
+
+ctid=$(prompt_ctid)
 echo "Using container ID: $ctid"
+
+hostname=$(prompt_hostname)
+echo "Using hostname: $hostname"
 
 # Create LXC container with Ubuntu 25.04 template
 echo "Creating LXC container..."
@@ -161,6 +186,7 @@ pct create $ctid local:vztmpl/ubuntu-25.04-standard_25.04-1_amd64.tar.zst \
   --cores $cpu_cores \
   --memory $memory_mb \
   --swap 512 \
+  --hostname $hostname \
   --rootfs $storage_pool:$((disk_gb * 1024))M \
   --net0 name=eth0,bridge=$net_bridge,firewall=1
 
