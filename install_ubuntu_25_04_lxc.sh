@@ -64,9 +64,21 @@ prompt_ip() {
 # Prompt user for container configuration
 echo "=== Ubuntu 25.04 LXC Container Setup ==="
 
-cpu_cores=$(prompt_int "Enter number of CPU cores for the container: ")
-memory_mb=$(prompt_int "Enter memory size in MB for the container: ")
-disk_gb=$(prompt_int "Enter disk size in GB for the container: ")
+read_with_default() {
+  local prompt_msg="$1"
+  local default_value="$2"
+  local input
+  read -rp "$prompt_msg [$default_value]: " input
+  if [ -z "$input" ]; then
+    echo "$default_value"
+  else
+    echo "$input"
+  fi
+}
+
+cpu_cores=$(read_with_default "Enter number of CPU cores for the container" 2)
+memory_mb=$(read_with_default "Enter memory size in MB for the container" 4096)
+disk_gb=$(read_with_default "Enter disk size in GB for the container" 60)
 
 # List available storage pools
 echo "Available storage pools:"
@@ -112,7 +124,11 @@ if [[ "$ip_mode" == "static" ]]; then
   dns_ipv6=$(prompt_ip "DNS IPv6: ")
 fi
 
-ipv6_enable=$(prompt_yes_no "Enable IPv6?")
+ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
+if [ -z "$ipv6_enable" ]; then ipv6_enable="no"; fi
+
+ssh_key_enabled=$(prompt_yes_no "Enable SSH key authentication? (default no)")
+if [ -z "$ssh_key_enabled" ]; then ssh_key_enabled="no"; fi
 
 create_sudo_user=$(prompt_yes_no "Create a sudo user?")
 
@@ -141,7 +157,8 @@ if [[ "$create_sudo_user" == "yes" ]]; then
   done
 fi
 
-secure_container=$(prompt_yes_no "Secure the container (disable root SSH login, configure SSH keys)?")
+secure_container=$(prompt_yes_no "Secure the container (disable root SSH login, configure SSH keys)? (default no)")
+if [ -z "$secure_container" ]; then secure_container="no"; fi
 
 # Prompt user for container ID and name
 prompt_ctid() {
@@ -240,14 +257,25 @@ if [[ "$create_sudo_user" == "yes" ]]; then
   pct_exec "usermod -aG sudo $sudo_username"
 fi
 
+# Configure SSH key authentication if enabled
+if [[ "$ssh_key_enabled" == "yes" ]]; then
+  echo "Configuring SSH key authentication..."
+  # This assumes user will manually add their public key later or you can extend script to accept key input
+  pct_exec "sed -i 's/^#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config"
+  pct_exec "sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config"
+else
+  pct_exec "sed -i 's/^PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config"
+fi
+
 # Secure container SSH if requested
 if [[ "$secure_container" == "yes" ]]; then
   echo "Securing SSH configuration..."
   # Disable root login
   pct_exec "sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config || echo 'PermitRootLogin no' >> /etc/ssh/sshd_config"
-  # Restart SSH service
-  pct_exec "systemctl restart sshd"
 fi
+
+# Restart SSH service
+pct_exec "systemctl restart sshd"
 
 # Install Fail2Ban and UFW
 echo "Installing Fail2Ban and UFW..."
