@@ -166,11 +166,12 @@ prompt_hostname() {
   while true; do
     read -rp "Enter hostname for the container: " input
     # Validate hostname: letters, digits, hyphens, no leading/trailing hyphen, max 63 chars
-    if [[ "$input" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; then
+    # Accept lowercase letters only to avoid validation issues
+    if [[ "$input" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
       echo "$input"
       return
     else
-      echo "Invalid hostname. Use alphanumeric characters and hyphens only, no leading or trailing hyphens, max length 63."
+      echo "Invalid hostname. Use lowercase alphanumeric characters and hyphens only, no leading or trailing hyphens, max length 63."
     fi
   done
 }
@@ -195,6 +196,9 @@ echo "Configuring network..."
 
 # Set hostname inside container after creation
 pct exec $ctid -- hostnamectl set-hostname $hostname
+
+# Add hostname to /etc/hosts inside container
+pct exec $ctid -- bash -c "echo '127.0.1.1 $hostname' >> /etc/hosts"
 
 if [[ "$ip_mode" == "dhcp" ]]; then
   pct set $ctid -net0 ip=dhcp
