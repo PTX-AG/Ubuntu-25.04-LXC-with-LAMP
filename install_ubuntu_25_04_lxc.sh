@@ -68,12 +68,19 @@ read_with_default() {
   local prompt_msg="$1"
   local default_value="$2"
   local input
-  read -rp "$prompt_msg [$default_value]: " input
-  if [ -z "$input" ]; then
-    echo "$default_value"
-  else
-    echo "$input"
-  fi
+  while true; do
+    read -rp "$prompt_msg [$default_value]: " input
+    if [ -z "$input" ]; then
+      echo "$default_value"
+      return
+    fi
+    if [[ "$input" =~ ^[0-9]+$ ]] && [ "$input" -gt 0 ]; then
+      echo "$input"
+      return
+    else
+      echo "Please enter a valid positive integer."
+    fi
+  done
 }
 
 cpu_cores=$(read_with_default "Enter number of CPU cores for the container" 2)
@@ -205,7 +212,7 @@ pct create $ctid local:vztmpl/ubuntu-25.04-standard_25.04-1_amd64.tar.zst \
   --cores $cpu_cores \
   --memory $memory_mb \
   --swap 512 \
-  --rootfs $storage_pool:$((disk_gb * 1024))M \
+  --rootfs $storage_pool:${disk_gb}G \
   --net0 name=eth0,bridge=$net_bridge,firewall=1
 
 # Configure network inside container
