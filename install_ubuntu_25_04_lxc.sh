@@ -165,7 +165,6 @@ if [[ "$ip_mode" == "static" ]]; then
     dns_ipv6=""
   fi
 fi
-done
 
 if [ -z "$ipv6_enable" ]; then ipv6_enable="no"; fi
 
