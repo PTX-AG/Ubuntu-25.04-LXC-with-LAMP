@@ -158,6 +158,8 @@ if [[ "$ip_mode" == "static" ]]; then
     gateway_ipv6=""
     dns_ipv6=""
   fi
+  # Break to avoid repeated prompt
+  break
 else
   static_ipv4=""
   static_ipv6=""
@@ -167,7 +169,16 @@ else
   dns_ipv6=""
 fi
 
-ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
+ipv6_enable=""
+while true; do
+  ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
+  if [[ "$ipv6_enable" == "yes" || "$ipv6_enable" == "no" ]]; then
+    break
+  else
+    echo "Please answer y or n."
+  fi
+done
+
 if [ -z "$ipv6_enable" ]; then ipv6_enable="no"; fi
 
 if [[ "$ipv6_enable" == "no" ]]; then
