@@ -125,58 +125,46 @@ if [[ "$ip_mode_input" == "dhcp" ]]; then
   ip_mode="dhcp"
 fi
 
-static_ipv4="172.16.0.10/24"
+static_ipv4=""
+gateway_ipv4=""
+dns_ipv4=""
 static_ipv6=""
-gateway_ipv4="172.16.0.1"
 gateway_ipv6=""
-dns_ipv4="8.8.8.8"
 dns_ipv6=""
 
 if [[ "$ip_mode" == "static" ]]; then
-  echo "Enter static IPv4 address with subnet (default $static_ipv4):"
-  static_ipv4_input=$(read_with_default "IPv4" "$static_ipv4")
-  static_ipv4="$static_ipv4_input"
+  echo "Enter static IPv4 address with subnet (e.g. 172.16.0.10/24):"
+  read -rp "IPv4: " static_ipv4
 
-  echo "Enter IPv4 gateway (default $gateway_ipv4):"
-  gateway_ipv4_input=$(read_with_default "Gateway IPv4" "$gateway_ipv4")
-  gateway_ipv4="$gateway_ipv4_input"
+  echo "Enter IPv4 gateway (e.g. 172.16.0.1):"
+  read -rp "Gateway IPv4: " gateway_ipv4
 
-  echo "Enter IPv4 DNS server (default $dns_ipv4):"
-  dns_ipv4_input=$(read_with_default "DNS IPv4" "$dns_ipv4")
-  dns_ipv4="$dns_ipv4_input"
+  echo "Enter IPv4 DNS server (e.g. 8.8.8.8):"
+  read -rp "DNS IPv4: " dns_ipv4
 
-  ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
+  ipv6_enable=""
+  while true; do
+    ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
+    if [[ "$ipv6_enable" == "yes" || "$ipv6_enable" == "no" ]]; then
+      break
+    else
+      echo "Please answer y or n."
+    fi
+  done
+
   if [[ "$ipv6_enable" == "yes" ]]; then
-    echo "Enter static IPv6 address with subnet (default empty):"
+    echo "Enter static IPv6 address with subnet (leave blank to skip):"
     static_ipv6=$(read_with_default "IPv6" "")
-    echo "Enter IPv6 gateway (default empty):"
+    echo "Enter IPv6 gateway (leave blank to skip):"
     gateway_ipv6=$(read_with_default "Gateway IPv6" "")
-    echo "Enter IPv6 DNS server (default empty):"
+    echo "Enter IPv6 DNS server (leave blank to skip):"
     dns_ipv6=$(read_with_default "DNS IPv6" "")
   else
     static_ipv6=""
     gateway_ipv6=""
     dns_ipv6=""
   fi
-  # Break to avoid repeated prompt
-  break
-else
-  static_ipv4=""
-  static_ipv6=""
-  gateway_ipv4=""
-  gateway_ipv6=""
-  dns_ipv4=""
-  dns_ipv6=""
 fi
-
-ipv6_enable=""
-while true; do
-  ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
-  if [[ "$ipv6_enable" == "yes" || "$ipv6_enable" == "no" ]]; then
-    break
-  else
-    echo "Please answer y or n."
-  fi
 done
 
 if [ -z "$ipv6_enable" ]; then ipv6_enable="no"; fi
