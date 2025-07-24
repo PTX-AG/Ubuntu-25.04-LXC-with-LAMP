@@ -87,57 +87,104 @@ cpu_cores=$(read_with_default "Enter number of CPU cores for the container" 2)
 memory_mb=$(read_with_default "Enter memory size in MB for the container" 4096)
 disk_gb=$(read_with_default "Enter disk size in GB for the container" 60)
 
-# List available storage pools
+# Detect default storage pool (prefer ZFS if available)
+default_storage_pool=$(pvesm status | awk 'NR>1 {print $1, $2}' | grep zfs | head -n1 | awk '{print $1}')
+if [ -z "$default_storage_pool" ]; then
+  default_storage_pool=$(pvesm status | awk 'NR>1 {print $1}' | head -n1)
+fi
+
 echo "Available storage pools:"
 pvesm status | awk 'NR>1 {print $1}'
 
-read -rp "Enter storage pool to use for container rootfs: " storage_pool
+read_with_default() {
+  local prompt_msg="$1"
+  local default_value="$2"
+  local input
+  while true; do
+    read -rp "$prompt_msg [$default_value]: " input
+    if [ -z "$input" ]; then
+      echo "$default_value"
+      return
+    fi
+    echo "$input"
+    return
+  done
+}
+
+storage_pool=$(read_with_default "Enter storage pool to use for container rootfs" "$default_storage_pool")
 
 echo
 list_bridges
 echo
 read -rp "Enter network bridge to use from the above list: " net_bridge
 
-ip_mode=""
-while true; do
-  read -rp "Use static IP or DHCP? (static/dhcp): " ip_mode
-  if [[ "$ip_mode" == "static" || "$ip_mode" == "dhcp" ]]; then
-    break
-  else
-    echo "Please enter 'static' or 'dhcp'."
-  fi
-done
+ip_mode="static"
+echo "Default network mode is static IP."
+read -rp "Use static IP or DHCP? (static/dhcp) [static]: " ip_mode_input
+if [[ "$ip_mode_input" == "dhcp" ]]; then
+  ip_mode="dhcp"
+fi
 
-static_ipv4=""
+static_ipv4="172.16.0.10/24"
 static_ipv6=""
-gateway_ipv4=""
+gateway_ipv4="172.16.0.1"
 gateway_ipv6=""
-dns_ipv4=""
+dns_ipv4="8.8.8.8"
 dns_ipv6=""
 
 if [[ "$ip_mode" == "static" ]]; then
-  echo "Enter static IPv4 address (leave blank to skip):"
-  static_ipv4=$(prompt_ip "IPv4: ")
-  echo "Enter IPv4 gateway (leave blank to skip):"
-  gateway_ipv4=$(prompt_ip "Gateway IPv4: ")
-  echo "Enter IPv4 DNS server (leave blank to skip):"
-  dns_ipv4=$(prompt_ip "DNS IPv4: ")
+  echo "Enter static IPv4 address with subnet (default $static_ipv4):"
+  static_ipv4_input=$(read_with_default "IPv4" "$static_ipv4")
+  static_ipv4="$static_ipv4_input"
 
-  echo "Enter static IPv6 address (leave blank to skip):"
-  static_ipv6=$(prompt_ip "IPv6: ")
-  echo "Enter IPv6 gateway (leave blank to skip):"
-  gateway_ipv6=$(prompt_ip "Gateway IPv6: ")
-  echo "Enter IPv6 DNS server (leave blank to skip):"
-  dns_ipv6=$(prompt_ip "DNS IPv6: ")
+  echo "Enter IPv4 gateway (default $gateway_ipv4):"
+  gateway_ipv4_input=$(read_with_default "Gateway IPv4" "$gateway_ipv4")
+  gateway_ipv4="$gateway_ipv4_input"
+
+  echo "Enter IPv4 DNS server (default $dns_ipv4):"
+  dns_ipv4_input=$(read_with_default "DNS IPv4" "$dns_ipv4")
+  dns_ipv4="$dns_ipv4_input"
+
+  ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
+  if [[ "$ipv6_enable" == "yes" ]]; then
+    echo "Enter static IPv6 address with subnet (default empty):"
+    static_ipv6=$(read_with_default "IPv6" "")
+    echo "Enter IPv6 gateway (default empty):"
+    gateway_ipv6=$(read_with_default "Gateway IPv6" "")
+    echo "Enter IPv6 DNS server (default empty):"
+    dns_ipv6=$(read_with_default "DNS IPv6" "")
+  else
+    static_ipv6=""
+    gateway_ipv6=""
+    dns_ipv6=""
+  fi
+else
+  static_ipv4=""
+  static_ipv6=""
+  gateway_ipv4=""
+  gateway_ipv6=""
+  dns_ipv4=""
+  dns_ipv6=""
 fi
 
 ipv6_enable=$(prompt_yes_no "Enable IPv6? (default no)")
 if [ -z "$ipv6_enable" ]; then ipv6_enable="no"; fi
 
+if [[ "$ipv6_enable" == "no" ]]; then
+  static_ipv6=""
+  gateway_ipv6=""
+  dns_ipv6=""
+fi
+
 ssh_key_enabled=$(prompt_yes_no "Enable SSH key authentication? (default no)")
 if [ -z "$ssh_key_enabled" ]; then ssh_key_enabled="no"; fi
 
-create_sudo_user=$(prompt_yes_no "Create a sudo user?")
+create_sudo_user="yes"
+echo "Default is to create a sudo user."
+read -rp "Create a sudo user? (y/n) [y]: " create_sudo_user_input
+if [[ "$create_sudo_user_input" =~ ^[Nn] ]]; then
+  create_sudo_user="no"
+fi
 
 sudo_username=""
 sudo_password=""
